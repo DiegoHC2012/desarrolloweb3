@@ -14,6 +14,8 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    volumes:
+      - mongo-data:/data/db # Agregado para persistencia de datos
 
   mongoclient:
     image: alpine/mongosh
@@ -29,9 +31,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    # Si mantienes image:, añade pull_policy: never para evitar pull
-    # image: calculadora-fast-api:latest
-    # pull_policy: never
     environment:
       MONGO_URL: mongodb://admin_user:web3@mongo:27017/?authSource=admin
     ports:
@@ -45,6 +44,27 @@ services:
       mongo:
         condition: service_healthy
 
+  # --- NUEVO SERVICIO DE FRONTEND ---
+  frontend:
+    build:
+      context: ./frontend # Apunta a la carpeta de tu app React
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000" # Mapea el puerto de React al host
+    volumes:
+      - ./frontend:/app # Monta el código para live-reloading
+      - /app/node_modules # Evita que la carpeta node_modules local sobreescriba la del contenedor
+    networks:
+      - mongo-network # Para que pueda comunicarse con el backend
+    depends_on:
+      - calculadora # Opcional, pero asegura que el backend inicie primero
+    restart: always
+    environment:
+      - CHOKIDAR_USEPOLLING=true # Necesario para que el hot-reloading funcione bien en Docker
+
 networks:
   mongo-network:
     driver: bridge
+
+volumes: # Agregado para la persistencia de la base de datos
+  mongo-data:
