@@ -1,7 +1,7 @@
 # main.py
 import os
 import datetime
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
 from bson import ObjectId # Importante para manejar el _id de Mongo
@@ -38,6 +38,49 @@ collection_historial = database["historial"]
 def sumar(a: float, b: float):
     resultado = a + b
     document = {
+        "operacion": "suma",
+        "resultado": resultado,
+        "a": a,
+        "b": b,
+        "date": datetime.datetime.now(tz=datetime.timezone.utc),
+    }
+    collection_historial.insert_one(document)
+    return {"a": a, "b": b, "resultado": resultado}
+
+@app.get("/calculadora/res")
+def restar(a: float, b: float):
+    resultado = a - b
+    document = {
+        "operacion": "resta",
+        "resultado": resultado,
+        "a": a,
+        "b": b,
+        "date": datetime.datetime.now(tz=datetime.timezone.utc),
+    }
+    collection_historial.insert_one(document)
+    return {"a": a, "b": b, "resultado": resultado}
+
+@app.get("/calculadora/mul")
+def multiplicar(a: float, b: float):
+    resultado = a * b
+    document = {
+        "operacion": "multiplicacion",
+        "resultado": resultado,
+        "a": a,
+        "b": b,
+        "date": datetime.datetime.now(tz=datetime.timezone.utc),
+    }
+    collection_historial.insert_one(document)
+    return {"a": a, "b": b, "resultado": resultado}
+
+@app.get("/calculadora/div")
+def dividir(a: float, b: float):
+    if b == 0:
+        raise HTTPException(status_code=400, detail="No se puede dividir por cero")
+    
+    resultado = a / b
+    document = {
+        "operacion": "division",
         "resultado": resultado,
         "a": a,
         "b": b,
@@ -50,6 +93,20 @@ def sumar(a: float, b: float):
 @app.get("/calculadora/historial")
 def obtener_historial():
     operaciones = collection_historial.find({})
+    historial = []
+    for operacion in operaciones:
+        historial.append({
+            "a": operacion["a"],
+            "b": operacion["b"],
+            "resultado": operacion["resultado"],
+            "operacion": operacion["operacion"],
+            "date": operacion["date"].isoformat()
+        })
+    return {"historial": historial}
+
+@app.get("/calculadora/historial/{operacion}")
+def obtener_historial():
+    operaciones = collection_historial.find({"operacion": operacion})
     historial = []
     for operacion in operaciones:
         historial.append({
