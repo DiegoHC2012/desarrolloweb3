@@ -49,15 +49,13 @@ def sumar(a: float, b: float):
 # --- ¡NUEVO ENDPOINT DE HISTORIAL! ---
 @app.get("/calculadora/historial")
 def obtener_historial():
-    """
-    Recupera todas las operaciones guardadas en la base de datos,
-    ordenadas de la más reciente a la más antigua.
-    """
-    # Usamos find() para obtener todos los documentos.
-    # El sort("_id", -1) ordena los resultados por fecha de creación descendente.
-    historial_cursor = collection_historial.find().sort("_id", -1)
-    
-    # Convertimos el cursor a una lista y nos aseguramos de que el _id sea un string
-    historial_lista = [mongo_id_to_str(doc) for doc in historial_cursor]
-    
-    return {"historial": historial_lista}
+    operaciones = collection_historial.find({})
+    historial = []
+    for operacion in operaciones:
+        historial.append({
+            "a": operacion["a"],
+            "b": operacion["b"],
+            "resultado": operacion["resultado"],
+            "date": operacion["date"].isoformat()
+        })
+    return {"historial": historial}

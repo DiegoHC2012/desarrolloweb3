@@ -1,44 +1,58 @@
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 import pytest
 import mongomock
+
 from pymongo import MongoClient
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 import main
 
 client = TestClient(main.app)
 fake_mongo_client = mongomock.MongoClient()
-database = fake_mongo_client.practica1
-collection_historial = database.historial
+fake_database = fake_mongo_client.practica1
+fake_collection_historial = fake_database.historial
 
 @pytest.mark.parametrize(
-    "a, b, resultado",
-    [
-        (2, 3, 5),
-        (4, 2, 6),
-        (0, 0, 0),
-        (0, 1, 1),
-        (1, 0, 1),
-        (1, 1, 2),
-        (2, 2, 4),
-    ]
+        "numeroa, numerob, resultado",
+        [
+            (5, 10, 15),
+            (0, 0, 0),
+            (-5, 5, 0),
+            (-10, -5, -15),
+            (2.5, 2.5, 5.0),
+            (10, -20, -10)
+        ]
 )
 
-def test_sumar(monkeypatch,a, b, resultado):
-    monkeypatch.setattr(main, "collection_historial", fake_mongo_client)
-    response = client.get("/calculadora/sum?a={a}&b={b}")
+def test_sumar(monkeypatch, numeroa, numerob, resultado):
+    monkeypatch.setattr(main, "collection_historial", fake_collection_historial)
+    
+    response = client.get(f"/calculadora/sum?a={numeroa}&b={numerob}")
     assert response.status_code == 200
-    assert response.json() == {"a": a, "b": b, "resultado": resultado}
-    assert collection_historial.find_one({"resultado": resultado,"a": a, "b": b})
+    assert response.json() == {"a": numeroa, "b": numerob, "resultado": resultado}
+    
+    assert fake_collection_historial.find_one({"resultado": resultado, "a": numeroa, "b": numerob}) is not None
 
 def test_historial(monkeypatch):
-    monkeypatch.setattr(main, "collection_historial", collection_historial)
+    monkeypatch.setattr(main, "collection_historial", fake_collection_historial)
 
     response = client.get("/calculadora/historial")
     assert response.status_code == 200
-    expected_data = list(collection_historial.find({}, {"_id": 0}))
 
-    print(f"DEBUG: expected_data: {expected_data}")
-    print(f"DEBUG: response.json(): {response.json()}")
+    #Obtenemos todos los documentos que ya fueron ingresados
+    expected_data = list(fake_collection_historial.find({}))
 
-    assert response.json() == expected_data
+    historial = []
+    for document in expected_data:
+        historial.append({
+            "a": document["a"],
+            "b": document["b"],
+            "resultado": document["resultado"],
+            "date": document["date"].isoformat()
+        })
+    
+    print(f"DEBUG: exected_data{historial}")
+    print(f"DEBUG: response.json{response.json()}")
+
+    #Comparamos las respuestas
+    assert response.json() == {"historial": historial}
