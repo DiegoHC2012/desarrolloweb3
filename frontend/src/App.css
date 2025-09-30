@@ -1,169 +1,157 @@
-/* --- Importar una fuente elegante de Google Fonts --- */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
-
-/* --- Estilos Globales y Fondo --- */
-body {
-  margin: 0;
-  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  background: #121212; /* Fondo oscuro principal */
-  background-image: radial-gradient(circle at 1% 1%, #2c2c2c 1px, transparent 1px),
-                    radial-gradient(circle at 99% 99%, #2c2c2c 1px, transparent 1px);
-  background-size: 40px 40px;
-  color: #e0e0e0; /* Color de texto principal (blanco suave) */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-}
-
-/* --- Contenedor Principal de la App --- */
 .App {
   text-align: center;
-  width: 100%;
-  padding: 20px;
-}
-
-/* --- Contenedor de la Calculadora (Efecto Cristal) --- */
-.calculator-container {
-  max-width: 400px;
-  margin: auto;
-  padding: 40px;
-  background: rgba(30, 30, 30, 0.7); /* Fondo semitransparente */
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  backdrop-filter: blur(12px); /* El efecto de desenfoque mágico */
-  -webkit-backdrop-filter: blur(12px);
-  transition: all 0.3s ease;
-}
-
-.calculator-container:hover {
-  box-shadow: 0 8px 40px 0 rgba(0, 191, 255, 0.2); /* Sombra azul al pasar el ratón */
-}
-
-/* --- Título --- */
-h1 {
-  font-weight: 700;
-  background: linear-gradient(90deg, #00BFFF, #8A2BE2);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 30px;
-}
-
-/* --- Grupo de Inputs y el signo '+' --- */
-.input-group {
+  background-color: #1a1a1a;
+  min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 15px;
-  margin-bottom: 25px;
+  font-size: calc(10px + 2vmin);
+  color: white;
+  padding: 2rem;
 }
 
-.plus-sign {
-  font-size: 2rem;
-  color: #00BFFF; /* Azul neón */
-  font-weight: 300;
-}
-
-/* --- Estilo de los Inputs --- */
-input[type="number"] {
-  width: 100px;
-  padding: 12px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid transparent;
-  border-bottom: 2px solid #444;
-  color: #e0e0e0;
-  font-size: 1rem;
-  text-align: center;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-  -moz-appearance: textfield; /* Oculta las flechas en Firefox */
-}
-input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button {
-  -webkit-appearance: none; /* Oculta las flechas en Chrome/Safari */
-  margin: 0;
-}
-
-input[type="number"]:focus {
-  outline: none;
-  border-bottom: 2px solid #00BFFF; /* Borde azul al seleccionar */
-  box-shadow: 0 0 15px rgba(0, 191, 255, 0.3);
-}
-
-/* --- Botón de Calcular --- */
-button {
+.calculator-container {
+  background: #282c34;
+  padding: 2rem 3rem;
+  border-radius: 15px;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+  border: 1px solid rgba(0, 255, 255, 0.7);
   width: 100%;
-  padding: 15px;
-  font-size: 1.1rem;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
+  max-width: 600px;
+}
+
+h1 {
+  color: #00ffff;
+  text-shadow: 0 0 10px #00ffff;
+  margin-bottom: 2rem;
+}
+
+.section {
+  background-color: #20232a;
+  border: 1px solid #00ffff66;
   border-radius: 8px;
-  color: #fff;
-  background: linear-gradient(90deg, #8A2BE2, #00BFFF);
-  background-size: 200% 100%;
-  transition: all 0.4s ease;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+h2, h3, h4 {
+  color: #00ffff;
+  margin-top: 0;
+}
+
+input[type="text"],
+input[type="date"],
+textarea,
+select {
+  padding: 10px;
+  margin: 5px;
+  border-radius: 5px;
+  border: 1px solid #00ffff;
+  background-color: #1a1a1a;
+  color: white;
+  font-size: 1rem;
+}
+
+textarea {
+  width: 95%;
+  min-height: 60px;
+  resize: vertical;
+}
+
+.button-group {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+button {
+  padding: 10px 20px;
+  font-size: 1.2rem;
+  border: 1px solid #00ffff;
+  background-color: transparent;
+  color: #00ffff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: 5px;
+  text-shadow: 0 0 5px #00ffff;
 }
 
 button:hover {
-  background-position: 100% 0; /* Animación del gradiente */
-  box-shadow: 0 0 20px rgba(0, 191, 255, 0.5);
+  background-color: #00ffff;
+  color: #1a1a1a;
+  box-shadow: 0 0 15px #00ffff;
 }
 
-/* --- Sección de Resultado --- */
+button:disabled {
+  border-color: #555;
+  color: #555;
+  cursor: not-allowed;
+  text-shadow: none;
+}
+button:disabled:hover {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+
 .result {
-  margin-top: 30px;
+  margin-top: 20px;
   padding: 15px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-}
-
-.result h2 {
-  margin: 0;
-  font-weight: 400;
+  background-color: #1a1a1a;
+  border-radius: 5px;
+  border: 1px dashed #00ffff;
 }
 
 .result-value {
-  font-weight: 700;
-  color: #00BFFF; /* Resalta el resultado en azul */
-  font-size: 2.5rem;
-}
-
-/* --- Historial de Operaciones --- */
-.history {
-  margin-top: 30px;
-  text-align: left;
-}
-
-.history h3 {
-  border-bottom: 1px solid #444;
-  padding-bottom: 10px;
-  font-weight: 400;
-  color: #aaa;
+  color: #39ff14;
+  font-weight: bold;
+  text-shadow: 0 0 8px #39ff14;
 }
 
 .history ul {
-  list-style: none;
+  list-style-type: none;
   padding: 0;
-  margin-top: 15px;
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 .history li {
-  padding: 10px;
-  background: rgba(0, 0, 0, 0.1);
-  margin-bottom: 8px;
-  border-radius: 6px;
-  border-left: 3px solid #8A2BE2; /* Acento morado */
-  font-size: 0.9rem;
-  transition: background 0.3s ease;
+  background-color: #20232a;
+  margin: 5px 0;
+  padding: 8px;
+  border-radius: 4px;
+  font-family: 'Courier New', Courier, monospace;
 }
 
-.history li:hover {
-  background: rgba(0, 0, 0, 0.3);
+/* --- Estilos nuevos para Lote e Historial --- */
+.lote-builder, .history-filters {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 1rem;
+}
+
+.lote-display {
+  margin-top: 1rem;
+}
+
+.lote-display ul {
+  text-align: left;
+  background-color: #1a1a1a;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+pre {
+  background-color: #1a1a1a;
+  padding: 1rem;
+  border-radius: 5px;
+  text-align: left;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: #39ff14;
 }
