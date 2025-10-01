@@ -52,7 +52,7 @@ app.add_middleware(
     allow_credentials=True
 )
 
-# --- Endpoints Modificados ---
+# --- Endpoints base de la clase ---
 
 @app.get("/calculadora/sum")
 def sumar(request: Request, nums: List[float] = Query(..., min_length=2)):
@@ -119,18 +119,14 @@ def dividir(request: Request, nums: List[float] = Query(..., min_length=2)):
     request.app.state.collection_historial.insert_one(document)
     return {"numeros": nums, "resultado": resultado}
 
-# --- Resto de los Endpoints (sin cambios) ---
-
 @app.post("/calculadora/lote", response_model=List[Resultado])
 def procesar_lote_de_operaciones(operaciones: List[Operacion]):
     resultados_finales = []
     for op_item in operaciones:
-        
-        # --- MEJORA AÑADIDA AQUÍ ---
-        # Verificamos que tengamos al menos dos números para operar
+
         if len(op_item.nums) < 2:
             raise HTTPException(
-                status_code=400, # 400 Bad Request es ideal para esto
+                status_code=400, 
                 detail={
                     "message": "Se requieren al menos dos números para una operación.",
                     "operacion_fallida": op_item.op,
@@ -152,7 +148,6 @@ def procesar_lote_de_operaciones(operaciones: List[Operacion]):
         if op_item.op == TipoOperacion.suma:
             resultado_calculado = sum(op_item.nums)
         else:
-            # La comprobación 'if not op_item.nums' ya no es necesaria por la validación de longitud de arriba
             resultado_calculado = op_item.nums[0]
             for numero in op_item.nums[1:]:
                 if op_item.op == TipoOperacion.resta:
@@ -179,9 +174,8 @@ def procesar_lote_de_operaciones(operaciones: List[Operacion]):
 def obtener_historial(request: Request):
     historial = []
     for operacion in request.app.state.collection_historial.find({}):
-        # Adaptado para el nuevo formato del historial
         historial.append({
-            "numeros": operacion.get("numeros", [operacion.get("a"), operacion.get("b")]), # Para compatibilidad
+            "numeros": operacion.get("numeros", [operacion.get("a"), operacion.get("b")]), 
             "resultado": operacion.get("resultado"),
             "operacion": operacion.get("operacion"),
             "date": operacion.get("date").isoformat()
@@ -190,7 +184,6 @@ def obtener_historial(request: Request):
 
 @app.get("/calculadora/historial/operacion/{operacion}")
 def obtener_historial_por_operacion(operacion: str, request: Request):
-    # ... (tu código aquí) ...
     operaciones_validas = [op.name for op in TipoOperacion]
     if operacion not in operaciones_validas:
         raise HTTPException(status_code=404, detail=f"Operación '{operacion}' no encontrada.")
@@ -207,7 +200,6 @@ def obtener_historial_por_operacion(operacion: str, request: Request):
 
 @app.get("/calculadora/historial/fecha/{fecha}")
 def obtener_historial_por_fecha(fecha: str, request: Request):
-    # ... (tu código aquí) ...
     try:
         fecha_obj = datetime.datetime.fromisoformat(fecha).date()
     except ValueError:

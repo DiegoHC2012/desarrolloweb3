@@ -6,7 +6,6 @@ from fastapi.testclient import TestClient
 import main
 import datetime
 
-# El cliente de prueba se inicializa una vez
 client = TestClient(main.app)
 
 @pytest.fixture
@@ -17,7 +16,6 @@ def clean_db_session(monkeypatch):
     fake_mongo_client = mongomock.MongoClient()
     fake_collection = fake_mongo_client.practica1.historial
     
-    # Inyectamos la colección mock en el estado de la app antes de cada prueba
     main.app.state.collection_historial = fake_collection
     
     yield fake_collection
@@ -32,7 +30,6 @@ def clean_db_session(monkeypatch):
     ([0, 0, 0], 0),
 ])
 def test_sumar_con_n_numeros(clean_db_session, numeros, resultado_esperado):
-    # httpx (usado por TestClient) convierte la lista en ?nums=X&nums=Y...
     response = client.get("/calculadora/sum", params={"nums": numeros})
     
     assert response.status_code == 200
@@ -69,7 +66,7 @@ def test_multiplicar_con_n_numeros(clean_db_session, numeros, resultado_esperado
 
 @pytest.mark.parametrize("numeros, resultado_esperado", [
     ([100, 5, 2], 10),
-    ([0, 10], 0.0), # El 0 es válido como primer número
+    ([0, 10], 0.0), # El 0 es correcto en ese lugar solo si es en el segundo no
 ])
 def test_dividir_con_n_numeros(clean_db_session, numeros, resultado_esperado):
     response = client.get("/calculadora/div", params={"nums": numeros})
@@ -93,7 +90,7 @@ def test_division_por_cero_en_lista(clean_db_session):
     assert response.status_code == 403
     assert clean_db_session.count_documents({}) == 0
 
-# --- Pruebas para Lote y Historial (Adaptadas y Corregidas) ---
+# --- Pruebas para Lote y Historial  ---
 
 def test_procesar_lote_exitoso(clean_db_session):
     payload = [{"op": "sum", "nums": [10, 20]}, {"op": "res", "nums": [100, 10]}]
@@ -104,9 +101,6 @@ def test_procesar_lote_exitoso(clean_db_session):
     assert response.json() == expected
 
 def test_procesar_lote_con_numeros_insuficientes(clean_db_session):
-    """
-    Prueba que la API falle si una operación en el lote tiene menos de dos números.
-    """
     payload = [{"op": "sum", "nums": [10, 5]}, {"op": "mul", "nums": [5]}]
     url = main.app.url_path_for("procesar_lote_de_operaciones")
     response = client.post(url, json=payload)
