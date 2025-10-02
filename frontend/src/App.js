@@ -1,207 +1,206 @@
-import './App.css';
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
+import "./App.css";
 
-function App() {
-  // Estado para la calculadora simple (GET)
-  const [numerosInput, setNumerosInput] = useState("10 5 2");
+const DEFAULT_API = "http://127.0.0.1:8089";
+
+export default function App() {
+  const [apiUrl, setApiUrl] = useState(DEFAULT_API);
+  const [savingApi, setSavingApi] = useState(false);
+
+  const [a, setA] = useState("");
+  const [b, setB] = useState("");
   const [resultado, setResultado] = useState(null);
 
-  // Estado para el constructor de lotes (POST)
-  const [loteOperaciones, setLoteOperaciones] = useState([]);
-  const [loteOpActual, setLoteOpActual] = useState("sum");
-  const [loteNumsInput, setLoteNumsInput] = useState("5 5");
-  const [resultadoLote, setResultadoLote] = useState(null);
-
-  // Estado para el historial y sus filtros
   const [historial, setHistorial] = useState([]);
-  const [filtroOperacion, setFiltroOperacion] = useState("");
-  const [filtroFecha, setFiltroFecha] = useState("");
+  const [limit, setLimit] = useState(20);
 
-  const apiUrl = ''; // Asegúrate de que el puerto sea el correcto
+  const [cargando, setCargando] = useState(false);
+  const [cargandoHist, setCargandoHist] = useState(false);
+  const [error, setError] = useState("");
 
-  // --- LÓGICA DE HISTORIAL ---
-  const obtenerHistorial = useCallback(async () => {
-    let url = `${apiUrl}/calculadora/historial`;
-    if (filtroOperacion) {
-      url = `${apiUrl}/calculadora/historial/operacion/${filtroOperacion}`;
-    } else if (filtroFecha) {
-      url = `${apiUrl}/calculadora/historial/fecha/${filtroFecha}`;
-    }
-    
+  const baseApi = useMemo(() => apiUrl.replace(/\/$/, ""), [apiUrl]);
+
+  const guardarApi = () => {
+    localStorage.setItem("API_URL", baseApi);
+    setSavingApi(true);
+    setTimeout(() => setSavingApi(false), 500);
+  };
+
+  const formatDate = (dateString) => {
     try {
-      const res = await fetch(url);
-      const data = await res.json();
-      if (res.ok) {
-        setHistorial(data.historial ? data.historial.reverse() : []);
-      } else {
-        alert(`Error al obtener historial: ${data.detail}`);
-      }
-    } catch (error) {
-      console.error("Error de conexión:", error);
-      alert("No se pudo conectar con la API. ¿Está encendida?");
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      return date.toLocaleString();
+    } catch {
+      return dateString;
     }
-  }, [filtroOperacion, filtroFecha]);
+  };
+
+  const obtenerHistorial = useCallback(async (customLimit) => {
+    setError("");
+    setCargandoHist(true);
+    try {
+      const url = new URL(`${baseApi}/calculadora/historial`);
+      url.searchParams.set("limit", String(customLimit ?? limit));
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      // tu backend ya ordena DESC por fecha; mostramos directo
+      setHistorial(Array.isArray(data.historial) ? data.historial : []);
+    } catch (e) {
+      console.error(e);
+      setError("No se pudo obtener el historial. Verifica la conexión con el backend.");
+    } finally {
+      setCargandoHist(false);
+    }
+  }, [baseApi, limit]);
+
+  const calcularSuma = async (e) => {
+    e?.preventDefault?.();
+    setError("");
+    setResultado(null);
+    setCargando(true);
+    try {
+      const aNum = a === "" ? 0 : Number(a);
+      const bNum = b === "" ? 0 : Number(b);
+      if (Number.isNaN(aNum) || Number.isNaN(bNum)) {
+        throw new Error("Ingresa números válidos.");
+      }
+
+      const url = new URL(`${baseApi}/calculadora/sum`);
+      url.searchParams.set("a", String(aNum));
+      url.searchParams.set("b", String(bNum));
+
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setResultado(data.resultado);
+
+      // refrescar historial tras operación
+      await obtenerHistorial();
+    } catch (e) {
+      console.error(e);
+      setError("No se pudo calcular la suma. Revisa que el backend esté funcionando y CORS habilitado.");
+    } finally {
+      setCargando(false);
+    }
+  };
 
   useEffect(() => {
     obtenerHistorial();
   }, [obtenerHistorial]);
 
-  // --- LÓGICA DE CALCULADORA SIMPLE (GET) ---
-  const calcular = async (operacion) => {
-    const nums = numerosInput.split(/[\s,]+/).filter(Boolean).map(Number);
-    if (nums.some(isNaN) || nums.length < 2) {
-      alert("Por favor, introduce al menos dos números válidos separados por espacios o comas.");
-      return;
-    }
-
-    const queryString = new URLSearchParams(nums.map(n => ['nums', n])).toString();
-    
-    try {
-      const res = await fetch(`${apiUrl}/calculadora/${operacion}?${queryString}`);
-      const data = await res.json();
-      
-      if (res.ok) {
-        setResultado(data.resultado);
-        obtenerHistorial(); // Actualizamos el historial tras una operación exitosa
-      } else {
-        const errorMsg = data.detail.message || data.detail;
-        alert(`Error: ${errorMsg}`);
-        setResultado(null);
-      }
-    } catch (error) {
-      console.error("Error de conexión:", error);
-      alert("No se pudo conectar con la API.");
-    }
-  };
-
-  // --- LÓGICA DE LOTES (POST) ---
-  const agregarAlLote = () => {
-    const nums = loteNumsInput.split(/[\s,]+/).filter(Boolean).map(Number);
-    if (nums.some(isNaN) || nums.length === 0) {
-      alert("Introduce números válidos para el lote.");
-      return;
-    }
-    setLoteOperaciones([...loteOperaciones, { op: loteOpActual, nums }]);
-    setLoteNumsInput(""); // Limpiamos el input
-  };
-  
-  const enviarLote = async () => {
-    if (loteOperaciones.length === 0) {
-      alert("Añade al menos una operación al lote.");
-      return;
-    }
-    
-    try {
-      const res = await fetch(`${apiUrl}/calculadora/lote`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(loteOperaciones)
-      });
-      const data = await res.json();
-      
-      if (res.ok) {
-        setResultadoLote(data);
-        setLoteOperaciones([]); // Limpiamos el lote tras enviarlo
-      } else {
-        const errorMsg = data.detail.message || data.detail;
-        alert(`Error en el lote: ${errorMsg}\nOperación: ${data.detail.operacion_fallida}\nNúmeros: ${data.detail.numeros_enviados.join(', ')}`);
-        setResultadoLote(null);
-      }
-    } catch (error) {
-      console.error("Error de conexión:", error);
-      alert("No se pudo conectar con la API.");
-    }
-  };
-
-  const formatOperacion = (op) => {
-    if (!op.numeros || op.numeros.length === 0) return "Operación inválida";
-    const symbolMap = { suma: '+', resta: '-', multiplicacion: '*', division: '/' };
-    return `${op.numeros.join(` ${symbolMap[op.operacion] || '?'} `)} = ${op.resultado}`;
+  const limpiar = () => {
+    setA("");
+    setB("");
+    setResultado(null);
+    setError("");
   };
 
   return (
-    <div className="App">
-      <div className="calculator-container">
-        <h1>Calculadora Neón  Neon</h1>
-
-        {/* --- CALCULADORA SIMPLE --- */}
-        <div className="section">
-          <h2>Calculadora Simple (GET)</h2>
-          <textarea
-            value={numerosInput}
-            onChange={(e) => setNumerosInput(e.target.value)}
-            placeholder="Escribe números separados por espacios o comas..."
-          />
-          <div className="button-group">
-            <button onClick={() => calcular('sum')}>+</button>
-            <button onClick={() => calcular('res')}>-</button>
-            <button onClick={() => calcular('mul')}>*</button>
-            <button onClick={() => calcular('div')}>/</button>
+    <div className="page">
+      <div className="card">
+        <header className="header">
+          <div className="title">
+            <h1>Calculadora React</h1>
+            <p>Backend FastAPI · MongoDB · Suma e Historial</p>
           </div>
-          {resultado !== null && (
-            <div className="result">
-              <h3>Resultado: <span className="result-value">{resultado}</span></h3>
-            </div>
-          )}
-        </div>
 
-        {/* --- OPERACIONES POR LOTES --- */}
-        <div className="section">
-          <h2>Operaciones por Lotes (POST)</h2>
-          <div className="lote-builder">
-            <select value={loteOpActual} onChange={(e) => setLoteOpActual(e.target.value)}>
-              <option value="sum">Suma</option>
-              <option value="res">Resta</option>
-              <option value="mul">Multiplicación</option>
-              <option value="div">División</option>
-            </select>
+          <div className="api-box">
             <input
-              type="text"
-              value={loteNumsInput}
-              onChange={(e) => setLoteNumsInput(e.target.value)}
-              placeholder="Números..."
+              className="input"
+              value={apiUrl}
+              onChange={(e) => setApiUrl(e.target.value)}
+              placeholder="http://127.0.0.1:8000"
             />
-            <button onClick={agregarAlLote}>Añadir al Lote</button>
+            <button className={`btn btn-outline ${savingApi ? "btn-pulse" : ""}`} onClick={guardarApi}>
+              Guardar API
+            </button>
           </div>
-          <div className="lote-display">
-            <h4>Lote Actual:</h4>
-            <ul>
-              {loteOperaciones.map((op, i) => <li key={i}>{op.op}: [{op.nums.join(', ')}]</li>)}
-            </ul>
-            <button onClick={enviarLote} disabled={loteOperaciones.length === 0}>Enviar Lote</button>
-          </div>
-          {resultadoLote && (
-            <div className="result">
-              <h3>Resultado del Lote:</h3>
-              <pre>{JSON.stringify(resultadoLote, null, 2)}</pre>
-            </div>
-          )}
-        </div>
+        </header>
 
-        {/* --- HISTORIAL Y FILTROS --- */}
-        <div className="section">
-          <h2>Historial</h2>
-          <div className="history-filters">
-            <select value={filtroOperacion} onChange={e => { setFiltroOperacion(e.target.value); setFiltroFecha(''); }}>
-              <option value="">Todas las operaciones</option>
-              <option value="suma">Suma</option>
-              <option value="resta">Resta</option>
-              <option value="multiplicacion">Multiplicación</option>
-              <option value="division">División</option>
-            </select>
-            <input type="date" value={filtroFecha} onChange={e => { setFiltroFecha(e.target.value); setFiltroOperacion(''); }}/>
+        <section className="calc">
+          <form onSubmit={calcularSuma} className="calc-grid">
+            <input
+              type="number"
+              className="input"
+              value={a}
+              onChange={(e) => setA(e.target.value)}
+              placeholder="Valor A"
+              inputMode="decimal"
+            />
+            <span className="op">+</span>
+            <input
+              type="number"
+              className="input"
+              value={b}
+              onChange={(e) => setB(e.target.value)}
+              placeholder="Valor B"
+              inputMode="decimal"
+            />
+            <button type="submit" className="btn" disabled={cargando}>
+              {cargando ? "Calculando…" : "Calcular"}
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={limpiar} disabled={cargando}>
+              Limpiar
+            </button>
+          </form>
+
+          <div className="result-wrap">
+            {error && <div className="alert alert-error">{error}</div>}
+
+            {resultado !== null && !error && (
+              <div className="result">
+                <div className="result-label">Resultado</div>
+                <div className="result-value">{resultado}</div>
+              </div>
+            )}
           </div>
-          <div className="history">
-            <ul>
-              {historial.slice(0, 10).map((op, i) => (
-                <li key={i}>{formatOperacion(op)}</li>
-              ))}
-            </ul>
+        </section>
+
+        <section className="hist">
+          <div className="hist-head">
+            <h2>Historial</h2>
+            <div className="hist-controls">
+              <label className="label">Límite</label>
+              <input
+                type="number"
+                min={1}
+                max={200}
+                className="input small"
+                value={limit}
+                onChange={(e) => setLimit(Number(e.target.value) || 1)}
+              />
+              <button className="btn btn-outline" onClick={() => obtenerHistorial()} disabled={cargandoHist}>
+                {cargandoHist ? "Cargando…" : "Actualizar"}
+              </button>
+            </div>
           </div>
-        </div>
+
+          <div className="hist-list">
+            {historial.length === 0 ? (
+              <p className="muted">No hay operaciones en el historial.</p>
+            ) : (
+              historial.map((op, i) => (
+                <div className="hist-item" key={`${op._id || i}-${op.date || i}`}>
+                  <div className="hist-left">
+                    <span className="mono">
+                      {op.a} + {op.b} = <strong className="accent">{op.resultado}</strong>
+                    </span>
+                  </div>
+                  <div className="hist-right">
+                    <small className="muted">{formatDate(op.date)}</small>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="api-foot">
+            API: <span className="mono">{baseApi}</span>
+          </div>
+        </section>
       </div>
     </div>
   );
 }
-
-export default App;

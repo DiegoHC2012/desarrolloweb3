@@ -1,21 +1,20 @@
-# Usar una imagen oficial de Node.js como base
+# frontend/Dockerfile
 FROM node:20-alpine
 
-# Establecer el directorio de trabajo dentro del contenedor
+# Crea directorio de trabajo
 WORKDIR /app
 
-# Copiar package.json y package-lock.json para instalar dependencias
-# Esto aprovecha el caché de Docker y solo reinstala si estos archivos cambian
+# Copiamos solo package.json primero para cache de dependencias
 COPY package*.json ./
 
-# Instalar las dependencias del proyecto
+# Instalamos dependencias
 RUN npm install
 
-# Copiar el resto de los archivos de la aplicación
+# Copiamos el resto del proyecto
 COPY . .
 
-# Exponer el puerto en el que corre la aplicación de React
+# Puerto por defecto de Vite
 EXPOSE 3000
 
-# El comando para iniciar la aplicación
-CMD ["npm", "start"]
+# Levanta en modo desarrollo con hot reload accesible en la red
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

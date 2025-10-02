@@ -1,3 +1,0 @@
-1. Crear un ambiente.
-
-python3 -m venv venv

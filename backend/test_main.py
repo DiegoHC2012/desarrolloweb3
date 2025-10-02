@@ -1,158 +1,53 @@
-# test_main.py
-
-import pytest
-import mongomock
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
-import main
-import datetime
+from main import app
+import mongomock
+import pymongo
+import pytest
 
-# El cliente de prueba se inicializa una vez
-client = TestClient(main.app)
+client = TestClient(app)
+mongo_client = mongomock.MongoClient()
+database = mongo_client["practica1"]
+fake_collection_historial = database.historial
 
-@pytest.fixture
-def clean_db_session(monkeypatch):
-    """
-    Fixture de Pytest que prepara una base de datos mock para cada prueba.
-    """
-    fake_mongo_client = mongomock.MongoClient()
-    fake_collection = fake_mongo_client.practica1.historial
-    
-    # Inyectamos la colección mock en el estado de la app antes de cada prueba
-    main.app.state.collection_historial = fake_collection
-    
-    yield fake_collection
-    
-    fake_mongo_client.close()
+@pytest.mark.parametrize(
+    "numeroA, numeroB, resultado",[
+        (5,10,15),
+        (0,0,0),
+        (-5,5,0),
+        (-10,-5,-15),
+        (10,-20,-10)
+    ]
+)
 
-# --- Pruebas para Endpoints GET con N Números ---
-
-@pytest.mark.parametrize("numeros, resultado_esperado", [
-    ([10, 20, 30], 60),
-    ([5.5, 4.5], 10.0),
-    ([0, 0, 0], 0),
-])
-def test_sumar_con_n_numeros(clean_db_session, numeros, resultado_esperado):
-    # httpx (usado por TestClient) convierte la lista en ?nums=X&nums=Y...
-    response = client.get("/calculadora/sum", params={"nums": numeros})
+def test_sumar(monkeypatch, numeroA, numeroB, resultado):
+    monkeypatch.setattr('main.collection_historial.insert_one', lambda x: None)
     
+    response = client.get(f"/calculadora/sum?a={numeroA}&b={numeroB}")
     assert response.status_code == 200
     data = response.json()
-    assert data["numeros"] == numeros
-    assert data["resultado"] == resultado_esperado
-    assert clean_db_session.count_documents({}) == 1
+    assert data == {"a": float(numeroA), "b": float(numeroB), "resultado": float(resultado)}
 
-@pytest.mark.parametrize("numeros, resultado_esperado", [
-    ([100, 10, 5], 85),
-    ([10.5, 0.5], 10.0),
-    ([5, 10], -5),
-])
-def test_restar_con_n_numeros(clean_db_session, numeros, resultado_esperado):
-    response = client.get("/calculadora/res", params={"nums": numeros})
+assert fake_collection_historial.find()
 
-    assert response.status_code == 200
-    data = response.json()
-    assert data["numeros"] == numeros
-    assert data["resultado"] == resultado_esperado
-
-@pytest.mark.parametrize("numeros, resultado_esperado", [
-    ([5, 5, 2], 50),
-    ([10, 0.5], 5.0),
-    ([10, 0], 0),
-])
-def test_multiplicar_con_n_numeros(clean_db_session, numeros, resultado_esperado):
-    response = client.get("/calculadora/mul", params={"nums": numeros})
-    
-    assert response.status_code == 200
-    data = response.json()
-    assert data["numeros"] == numeros
-    assert data["resultado"] == resultado_esperado
-
-@pytest.mark.parametrize("numeros, resultado_esperado", [
-    ([100, 5, 2], 10),
-    ([0, 10], 0.0), # El 0 es válido como primer número
-])
-def test_dividir_con_n_numeros(clean_db_session, numeros, resultado_esperado):
-    response = client.get("/calculadora/div", params={"nums": numeros})
-    
-    assert response.status_code == 200
-    data = response.json()
-    assert data["numeros"] == numeros
-    assert data["resultado"] == resultado_esperado
-
-def test_operaciones_con_numeros_negativos(clean_db_session):
-    """Prueba que todas las operaciones fallen si se envía un número negativo."""
-    operaciones = ["sum", "res", "mul", "div"]
-    for op in operaciones:
-        response = client.get(f"/calculadora/{op}", params={"nums": [10, -5]})
-        assert response.status_code == 403, f"Falló la operación {op}"
-    assert clean_db_session.count_documents({}) == 0
-
-def test_division_por_cero_en_lista(clean_db_session):
-    """Prueba que la división falle si hay un cero en los divisores."""
-    response = client.get("/calculadora/div", params={"nums": [100, 10, 0, 5]})
-    assert response.status_code == 403
-    assert clean_db_session.count_documents({}) == 0
-
-# --- Pruebas para Lote y Historial (Adaptadas y Corregidas) ---
-
-def test_procesar_lote_exitoso(clean_db_session):
-    payload = [{"op": "sum", "nums": [10, 20]}, {"op": "res", "nums": [100, 10]}]
-    url = main.app.url_path_for("procesar_lote_de_operaciones")
-    response = client.post(url, json=payload)
-    assert response.status_code == 200
-    expected = [{"op": "sum", "result": 30.0}, {"op": "res", "result": 90.0}]
-    assert response.json() == expected
-
-def test_procesar_lote_con_numeros_insuficientes(clean_db_session):
-    """
-    Prueba que la API falle si una operación en el lote tiene menos de dos números.
-    """
-    payload = [{"op": "sum", "nums": [10, 5]}, {"op": "mul", "nums": [5]}]
-    url = main.app.url_path_for("procesar_lote_de_operaciones")
-    response = client.post(url, json=payload)
-    assert response.status_code == 400
-    data = response.json()
-    assert data["detail"]["message"] == "Se requieren al menos dos números para una operación."
-    assert data["detail"]["operacion_fallida"] == "mul"
-    assert data["detail"]["numeros_enviados"] == [5]
-
-def test_procesar_lote_con_operacion_invalida(clean_db_session):
-    payload = [{"op": "pow", "nums": [2, 3]}]
-    url = main.app.url_path_for("procesar_lote_de_operaciones")
-    response = client.post(url, json=payload)
-    assert response.status_code == 422
-
-def test_historial_general_con_nuevo_formato(clean_db_session):
-    client.get("/calculadora/sum", params={"nums": [10, 5]})
-    client.get("/calculadora/mul", params={"nums": [3, 4]})
+def test_historial(monkeypatch):
+    monkeypatch.setatrr(main,"collection_historial", fake_collection_historial)
     response = client.get("/calculadora/historial")
     assert response.status_code == 200
-    data = response.json()
-    assert len(data["historial"]) == 2
-    resultados = {item['resultado'] for item in data['historial']}
-    assert resultados == {15.0, 12.0}
-    assert data['historial'][0]['numeros'] == [10, 5]
 
-def test_historial_por_operacion_exitoso(clean_db_session):
-    collection = clean_db_session
-    now = datetime.datetime.now(tz=datetime.timezone.utc)
-    collection.insert_one({"operacion": "suma", "numeros": [1, 2], "resultado": 3, "date": now})
-    collection.insert_one({"operacion": "suma", "numeros": [10, 10], "resultado": 20, "date": now})
-    response = client.get("/calculadora/historial/operacion/suma")
-    assert response.status_code == 200
-    data = response.json()
-    assert len(data["historial"]) == 2
+    expected_data = list(fake_collection_historial.find({}))
 
-def test_historial_por_fecha_exitoso(clean_db_session):
-    collection = clean_db_session
-    tz_utc = datetime.timezone.utc
-    collection.insert_one({"operacion": "suma", "numeros": [1, 2], "resultado": 3, "date": datetime.datetime(2025, 9, 25, 10, 0, 0, tzinfo=tz_utc)})
-    collection.insert_one({"operacion": "resta", "numeros": [10, 5], "resultado": 5, "date": datetime.datetime(2025, 9, 25, 15, 30, 0, tzinfo=tz_utc)})
-    response = client.get("/calculadora/historial/fecha/2025-09-25")
-    assert response.status_code == 200
-    assert len(response.json()["historial"]) == 2
+    historial = []
+    for document in expected_data:
+        historial.apend({
+            "a":document["a"],
+            "b":document["b"],
+            "resultado":document["resultado"],
+            "date": document["date"].isoformat()
+        })
 
-def test_historial_por_fecha_formato_invalido(clean_db_session):
-    response = client.get("/calculadora/historial/fecha/25-09-2025")
-    assert response.status_code == 400
-    assert response.json()["detail"] == "Formato de fecha inválido. Use YYYY-MM-DD."
+    print(f"Debug: expected_data: {historial}")
+    print(f"Debug: response.json(): {response.json()}")
+
+
+    assert response.json() == {"historial":historial}
