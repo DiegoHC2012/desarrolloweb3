@@ -2,7 +2,7 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches: ["Actividad-1"]
+    branches: ["actividad-1"]
     tags:
       - "v*.*.*"
   
