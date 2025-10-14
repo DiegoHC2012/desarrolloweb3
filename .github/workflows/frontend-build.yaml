@@ -1,10 +1,9 @@
-name: Build and Push Backend Docker Image
-
+name: Build and Push Frontend Docker Image
 on:
   push:
     branches: ["Actividad-1"]
     paths:
-      - 'backend/**'
+      - 'frontend/**'
     tags:
       - "v*.*.*"
 
@@ -14,7 +13,7 @@ jobs:
 
     permissions:
       contents: read
-      packages: write # Necesario para subir a GHCR
+      packages: write 
 
     steps:
       - name: Checkout code
@@ -30,9 +29,8 @@ jobs:
       - name: Determine image tags
         id: vars
         run: |
-          # Convertir el nombre del repositorio a minúsculas
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          echo "REPO_NAME=${REPO_LOWER}" >> $GITHUB_ENV
+          echo "REPO_NAME=${REPO_LOWER}/frontend" >> $GITHUB_ENV 
 
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             echo "TAG=${GITHUB_REF_NAME}" >> $GITHUB_ENV
@@ -42,7 +40,8 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t ghcr.io/${{ env.REPO_NAME }}:${{ env.TAG }} ./backend
+          # ¡Cambio clave! Ahora apunta a la carpeta ./frontend
+          docker build -t ghcr.io/${{ env.REPO_NAME }}:${{ env.TAG }} ./frontend
 
       - name: Push Docker image
         run: |
