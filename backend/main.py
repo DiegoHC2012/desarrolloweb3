@@ -65,4 +65,3 @@ def obtener_historial(limit: int = 20):
         print("⚠️ No se pudo leer de Mongo:", e)
         return {"historial": []}
     
-#Prueba para workflow

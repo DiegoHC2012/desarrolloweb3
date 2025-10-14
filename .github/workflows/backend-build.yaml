@@ -2,7 +2,7 @@ name: Build and Push Backend Docker Image
 
 on:
   push:
-    branches: ["Actividad-1"]
+    branches: ["Actividad-1"] # <--- CORRECCIÓN 1: Cambiado a la rama principal
     paths:
       - 'backend/**'
     tags:
@@ -11,10 +11,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
-      packages: write # Necesario para subir a GHCR
+      packages: write
 
     steps:
       - name: Checkout code
@@ -30,9 +29,9 @@ jobs:
       - name: Determine image tags
         id: vars
         run: |
-          # Convertir el nombre del repositorio a minúsculas
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          echo "REPO_NAME=${REPO_LOWER}" >> $GITHUB_ENV
+          # <--- CORRECCIÓN 2: Añadido '/backend' para un nombre de imagen único
+          echo "REPO_NAME=${REPO_LOWER}/backend" >> $GITHUB_ENV
 
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             echo "TAG=${GITHUB_REF_NAME}" >> $GITHUB_ENV
