@@ -1,3 +1,8 @@
 fastapi
 uvicorn
 pymongo
+pytest
+coverage
+httpx
+mongomock
+prometheus-fastapi-instrumentator

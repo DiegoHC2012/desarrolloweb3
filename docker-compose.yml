@@ -47,7 +47,35 @@ services:
       - calculadora
     networks:
       - mongo-network
+  
+  prometheus:
+      image: prom/prometheus
+      container_name: calculadora-prometheus
+      volumes:
+        - ./monitoring/prometheus.yml:/prometheus.yml
+      command: "--config.file=/prometheus.yml"
+      ports:
+        - "9090:9090"
+      networks:
+        - mongo-network
+  grafana:
+    image: grafana/grafana:latest
+    container_name: web3_calculadora-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - mongo-network
+
+volumes:
+  grafana-storage:
 
 networks:
   mongo-network:
+    name: web3_calculadora_mongo-network
     driver: bridge

@@ -4,6 +4,8 @@ import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient, DESCENDING
+from pymongo import ASCENDING
+from prometheus_fastapi_instrumentator import Instrumentator
 
 app = FastAPI()
 
@@ -54,14 +56,23 @@ def sumar(a: float, b: float):
     return {"a": a, "b": b, "resultado": resultado}
 
 @app.get("/calculadora/historial")
-def obtener_historial(limit: int = 20):
-    if collection_historial is None:
-        return {"historial": []}
-    try:
-        cursor = collection_historial.find().sort("date", DESCENDING).limit(limit)
-        docs = [serialize_doc(d) for d in cursor]
-        return {"historial": docs}
-    except Exception as e:
-        print("⚠️ No se pudo leer de Mongo:", e)
-        return {"historial": []}
-    
+def obtener_historial():
+    # EXCLUIR _id y ORDEN ASC por fecha para que coincida con el test
+    docs = list(collection_historial.find({}, {"_id": 0}).sort("date", ASCENDING))
+
+    historial = []
+    for d in docs:
+        dt = d.get("date")
+        historial.append(
+            {
+                "a": float(d.get("a", 0)),
+                "b": float(d.get("b", 0)),
+                "resultado": float(d.get("resultado", 0)),
+                "date": dt.isoformat() if hasattr(dt, "isoformat") else str(dt),
+            }
+        )
+
+    return {"historial": historial}
+
+#comentario para verificar workflow
+instrumentator = Instrumentator().instrument(app).expose(app)
