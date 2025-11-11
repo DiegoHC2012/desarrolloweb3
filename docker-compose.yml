@@ -1,0 +1,106 @@
+services:
+  mongo:
+    image: mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin_user
+      MONGO_INITDB_ROOT_PASSWORD: web3
+    ports:
+      - "27017:27017"
+    networks:
+      - mongo-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mongoclient:
+    image: alpine/mongosh
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - mongo-network
+    command: ["tail", "-f", "/dev/null"]
+    restart: always
+
+  calculadora:
+    image: ghcr.io/${GITHUB_USER}/${GITHUB_REPO}/backend:${IMAGE_TAG}
+    restart: always
+    environment:
+      MONGO_URL: mongodb://admin_user:web3@mongo:27017/?authSource=admin
+    ports:
+      - "8089:8000"
+    networks:
+      - mongo-network
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  frontend:
+    image: ghcr.io/${GITHUB_USER}/${GITHUB_REPO}/frontend:${IMAGE_TAG}
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - calculadora
+    networks:
+      - mongo-network
+  
+  prometheus:
+      image: prom/prometheus
+      container_name: calculadora-prometheus
+      volumes:
+        - ./monitoring/prometheus.yml:/prometheus.yml
+      command: "--config.file=/prometheus.yml"
+      ports:
+        - "9090:9090"
+      networks:
+        - mongo-network
+  
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: web3_calculadora-loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./monitoring/loki-config.yaml:/etc/loki/local-config.yaml
+      - ./loki-data:/loki
+    networks:
+      - mongo-network
+  
+  promtail:
+    image: grafana/promtail:3.1.0
+    container_name: web3_calculadora-promtail
+    depends_on:
+      - loki
+    volumes:
+      - ./monitoring/promtail-config.yaml:/etc/promtail/config.yaml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/config.yaml
+    networks:
+      - mongo-network
+  grafana:
+    image: grafana/grafana:latest
+    container_name: web3_calculadora-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - mongo-network
+
+volumes:
+  grafana-storage:
+
+networks:
+  mongo-network:
+    name: web3_calculadora_mongo-network
+    driver: bridge
