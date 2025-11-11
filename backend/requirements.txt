@@ -6,3 +6,5 @@ coverage
 httpx
 mongomock
 prometheus-fastapi-instrumentator
+loki-logger-handler
+requests

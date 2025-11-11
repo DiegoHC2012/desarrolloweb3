@@ -58,6 +58,31 @@ services:
         - "9090:9090"
       networks:
         - mongo-network
+  
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: web3_calculadora-loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./monitoring/loki-config.yaml:/etc/loki/local-config.yaml
+      - ./loki-data:/loki
+    networks:
+      - mongo-network
+  
+  promtail:
+    image: grafana/promtail:3.1.0
+    container_name: web3_calculadora-promtail
+    depends_on:
+      - loki
+    volumes:
+      - ./monitoring/promtail-config.yaml:/etc/promtail/config.yaml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/config.yaml
+    networks:
+      - mongo-network
   grafana:
     image: grafana/grafana:latest
     container_name: web3_calculadora-grafana

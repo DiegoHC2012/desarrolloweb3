@@ -1,13 +1,42 @@
 # main.py
-import os
+import os, sys
+import logging
 import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient, DESCENDING
 from pymongo import ASCENDING
 from prometheus_fastapi_instrumentator import Instrumentator
+from loki_logger_handler.loki_logger_handler import LokiLoggerHandler
 
 app = FastAPI()
+
+# Set up logging
+logger = logging.getLogger("custom_logger")
+logging_data = os.getenv("LOG_LEVEL", "INFO").upper()
+
+if logging_data == "DEBUG":
+    logger.setLevel(logging.DEBUG)
+else:
+    logger.setLevel(logging.INFO)
+
+# Create a console handler
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logger.level)
+formatter = logging.Formatter(
+    "%(levelname)s: %(asctime)s - %(name)s - %(message)s"
+)
+console_handler.setFormatter(formatter)
+
+# Create an instance of the custom handler
+loki_handler = LokiLoggerHandler(
+    url="http://loki:3100/loki/api/v1/push",
+    labels={"application": "FastApi"},
+    label_keys={},
+    timeout=10,
+)
+
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -53,6 +82,9 @@ def sumar(a: float, b: float):
             collection_historial.insert_one(doc)
         except Exception as e:
             print("⚠️ No se pudo guardar en Mongo:", e)
+
+    logger.info(f"Operación suma exitoso")
+    logger.debug(f"Operación suma: a={a}, b={b}, resultado={resultado}")
     return {"a": a, "b": b, "resultado": resultado}
 
 @app.get("/calculadora/historial")
@@ -71,8 +103,14 @@ def obtener_historial():
                 "date": dt.isoformat() if hasattr(dt, "isoformat") else str(dt),
             }
         )
+    logger.info("Historial de operaciones obtenido exitosamente")
+    logger.debug(f"Historial de operaciones: {historial}")
 
     return {"historial": historial}
 
 #comentario para verificar workflow
 instrumentator = Instrumentator().instrument(app).expose(app)
+
+logger.addHandler(loki_handler)
+logger.addHandler(console_handler)
+logger.info("Logger initialized")
