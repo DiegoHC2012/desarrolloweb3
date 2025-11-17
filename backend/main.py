@@ -134,92 +134,137 @@ def health():
 
 # SUMA
 @app.get("/calculadora/sum")
-def sumar(a: float = None, b: float = None):
+def sumar(a: str = None, b: str = None):
+    tipo = "suma"
     try:
-        validar_operadores(a, b)
+        # Si falta un parámetro
+        if a is None or b is None:
+            raise HTTPException(status_code=400, detail="Faltan parámetros")
 
-        OPERACIONES_TOTAL.labels("suma").inc()
-        with OPERACIONES_DURACION.labels("suma").time():
+        # Intentar convertirlos a float
+        try:
+            a = float(a)
+            b = float(b)
+        except:
+            raise HTTPException(status_code=400, detail="Los parámetros deben ser números")
+
+        # Medir éxito
+        OPERACIONES_TOTAL.labels(tipo).inc()
+        with OPERACIONES_DURACION.labels(tipo).time():
             resultado = a + b
-            logger.info(f"[SUCCESS] Suma correcta: a={a}, b={b}, res={resultado}")
-            return guardar_operacion("suma", a, b, resultado)
+            logger.info(f"[SUCCESS] SUMA: a={a}, b={b}, res={resultado}")
+            return guardar_operacion(tipo, a, b, resultado)
 
     except HTTPException as e:
-        OPERACIONES_ERROR.labels("suma").inc()
         logger.error(f"[ERROR SUMA] {e.detail}")
+        OPERACIONES_ERROR.labels(tipo).inc()
         raise e
 
     except Exception as e:
-        OPERACIONES_ERROR.labels("suma").inc()
         logger.error(f"[ERROR SUMA] inesperado: {str(e)}")
+        OPERACIONES_ERROR.labels(tipo).inc()
         raise HTTPException(status_code=500, detail="Error interno en SUMA")
 
 # RESTA
 @app.get("/calculadora/resta")
-def restar(a: float = None, b: float = None):
+def restar(a: str = None, b: str = None):
+    tipo = "resta"
     try:
-        validar_operadores(a, b)
+        # Validar que existan parámetros
+        if a is None or b is None:
+            raise HTTPException(status_code=400, detail="Faltan parámetros")
 
-        OPERACIONES_TOTAL.labels("resta").inc()
-        with OPERACIONES_DURACION.labels("resta").time():
+        # Intentar parsear a número
+        try:
+            a = float(a)
+            b = float(b)
+        except:
+            raise HTTPException(status_code=400, detail="Los parámetros deben ser números")
+
+        # Contamos operación y duración
+        OPERACIONES_TOTAL.labels(tipo).inc()
+        with OPERACIONES_DURACION.labels(tipo).time():
             resultado = a - b
-            logger.info(f"[SUCCESS] Resta correcta: a={a}, b={b}, res={resultado}")
-            return guardar_operacion("resta", a, b, resultado)
+            logger.info(f"[SUCCESS] RESTA: a={a}, b={b}, res={resultado}")
+            return guardar_operacion(tipo, a, b, resultado)
 
     except HTTPException as e:
-        OPERACIONES_ERROR.labels("resta").inc()
+        OPERACIONES_ERROR.labels(tipo).inc()
         logger.error(f"[ERROR RESTA] {e.detail}")
         raise e
 
     except Exception as e:
-        OPERACIONES_ERROR.labels("resta").inc()
+        OPERACIONES_ERROR.labels(tipo).inc()
         logger.error(f"[ERROR RESTA] inesperado: {str(e)}")
         raise HTTPException(status_code=500, detail="Error interno en RESTA")
 
 # MULTIPLICACIÓN
 @app.get("/calculadora/multiplicacion")
-def multiplicar(a: float = None, b: float = None):
+def multiplicar(a: str = None, b: str = None):
+    tipo = "multiplicacion"
     try:
-        validar_operadores(a, b)
+        # Validar que existan parámetros
+        if a is None or b is None:
+            raise HTTPException(status_code=400, detail="Faltan parámetros")
 
-        OPERACIONES_TOTAL.labels("multiplicacion").inc()
-        with OPERACIONES_DURACION.labels("multiplicacion").time():
+        # Intentar parsear a número
+        try:
+            a = float(a)
+            b = float(b)
+        except:
+            raise HTTPException(status_code=400, detail="Los parámetros deben ser números")
+
+        # Registrar operación
+        OPERACIONES_TOTAL.labels(tipo).inc()
+        with OPERACIONES_DURACION.labels(tipo).time():
             resultado = a * b
-            logger.info(f"[SUCCESS] Multiplicación: a={a}, b={b}, res={resultado}")
-            return guardar_operacion("multiplicacion", a, b, resultado)
+            logger.info(f"[SUCCESS] MULTIPLICACIÓN: a={a}, b={b}, res={resultado}")
+            return guardar_operacion(tipo, a, b, resultado)
 
     except HTTPException as e:
-        OPERACIONES_ERROR.labels("multiplicacion").inc()
+        OPERACIONES_ERROR.labels(tipo).inc()
         logger.error(f"[ERROR MULTIPLICACION] {e.detail}")
         raise e
 
     except Exception as e:
-        OPERACIONES_ERROR.labels("multiplicacion").inc()
+        OPERACIONES_ERROR.labels(tipo).inc()
         logger.error(f"[ERROR MULTIPLICACION] inesperado: {str(e)}")
         raise HTTPException(status_code=500, detail="Error interno en MULTIPLICACION")
 
 # DIVISIÓN
 @app.get("/calculadora/division")
-def division(a: float = None, b: float = None):
+def division(a: str = None, b: str = None):
+    tipo = "division"
     try:
-        validar_operadores(a, b)
+        # Validación de parámetros
+        if a is None or b is None:
+            raise HTTPException(status_code=400, detail="Faltan parámetros")
 
+        # Convertir a número
+        try:
+            a = float(a)
+            b = float(b)
+        except:
+            raise HTTPException(status_code=400, detail="Los parámetros deben ser números")
+
+        # Validación especial: división entre cero
         if b == 0:
             raise HTTPException(status_code=400, detail="No se puede dividir entre cero")
 
-        OPERACIONES_TOTAL.labels("division").inc()
-        with OPERACIONES_DURACION.labels("division").time():
+        # Registrar métricas
+        OPERACIONES_TOTAL.labels(tipo).inc()
+        with OPERACIONES_DURACION.labels(tipo).time():
             resultado = a / b
-            logger.info(f"[SUCCESS] División: a={a}, b={b}, res={resultado}")
-            return guardar_operacion("division", a, b, resultado)
+            logger.info(f"[SUCCESS] DIVISIÓN: a={a}, b={b}, res={resultado}")
+            return guardar_operacion(tipo, a, b, resultado)
 
     except HTTPException as e:
-        OPERACIONES_ERROR.labels("division").inc()
+        OPERACIONES_ERROR.labels(tipo).inc()
         logger.error(f"[ERROR DIVISION] {e.detail}")
         raise e
 
     except Exception as e:
-        OPERACIONES_ERROR.labels("division").inc()
+        OPERACIONES_ERROR.labels(tipo).inc()
         logger.error(f"[ERROR DIVISION] inesperado: {str(e)}")
         raise HTTPException(status_code=500, detail="Error interno en DIVISION")
 
