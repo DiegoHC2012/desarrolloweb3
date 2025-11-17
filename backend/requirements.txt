@@ -6,6 +6,7 @@ coverage
 httpx
 mongomock
 prometheus-fastapi-instrumentator
+prometheus-client
 loki-logger-handler
 python-dotenv
 requests

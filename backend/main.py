@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient, ASCENDING
 from prometheus_fastapi_instrumentator import Instrumentator
 from loki_logger_handler.loki_logger_handler import LokiLoggerHandler
+from prometheus_client import Counter, Histogram
 
 app = FastAPI()
 
@@ -44,7 +45,7 @@ logger.info("Logger initialized")
 # -------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -62,20 +63,41 @@ try:
     mongo_client.admin.command("ping")
     database = mongo_client["practica1"]
     collection_historial = database["historial"]
-    print("✅ Mongo conectado")
+    logger.info("Mongo conectado")
 except Exception as e:
-    print("⚠️ Mongo no disponible aún:", e)
+    logger.error(f"⚠️ Mongo no disponible: {e}")
 
 # -------------------------
-# Helpers
+# MÉTRICAS PROMETHEUS
+# -------------------------
+
+OPERACIONES_TOTAL = Counter(
+    "calculadora_operaciones_total",
+    "Número total de operaciones",
+    ["tipo"]
+)
+
+OPERACIONES_ERROR = Counter(
+    "calculadora_operaciones_error_total",
+    "Número total de operaciones fallidas",
+    ["tipo"]
+)
+
+OPERACIONES_DURACION = Histogram(
+    "calculadora_operaciones_duracion_ms",
+    "Duración de operaciones en milisegundos",
+    ["tipo"]
+)
+
+# -------------------------
+# HELPERS
 # -------------------------
 
 def validar_operadores(a, b):
-    """Valida que los parámetros existan y sean numéricos."""
     if a is None or b is None:
         raise HTTPException(
             status_code=400,
-            detail="Parámetros inválidos. Debe enviar 'a' y 'b' como números."
+            detail="Parámetros inválidos: debes enviar 'a' y 'b'"
         )
 
 def guardar_operacion(nombre, a, b, resultado):
@@ -87,18 +109,17 @@ def guardar_operacion(nombre, a, b, resultado):
         "date": datetime.datetime.now(datetime.timezone.utc)
     }
 
-    if collection_historial is not None:
-        try:
+    try:
+        if collection_historial:
             collection_historial.insert_one(doc)
-        except Exception as e:
-            logger.error(f"⚠️ No se pudo guardar en Mongo: {e}")
+    except Exception as e:
+        logger.error(f"[MONGO ERROR] Falló el guardado: {str(e)}")
 
-    # Asegurar que no regrese ObjectId
+    # limpiar retorno
     if "_id" in doc:
         del doc["_id"]
 
-    # Convertimos fecha a ISO 8601 para evitar errores en FastAPI
-    if isinstance(doc.get("date"), (datetime.datetime, datetime.date)):
+    if isinstance(doc["date"], (datetime.datetime, datetime.date)):
         doc["date"] = doc["date"].isoformat()
 
     return doc
@@ -114,74 +135,105 @@ def health():
 # SUMA
 @app.get("/calculadora/sum")
 def sumar(a: float = None, b: float = None):
-    validar_operadores(a, b)
+    try:
+        validar_operadores(a, b)
 
-    resultado = a + b
-    logger.info("Operación suma ejecutada")
-    logger.debug(f"a={a}, b={b}, resultado={resultado}")
+        OPERACIONES_TOTAL.labels("suma").inc()
+        with OPERACIONES_DURACION.labels("suma").time():
+            resultado = a + b
+            logger.info(f"[SUCCESS] Suma correcta: a={a}, b={b}, res={resultado}")
+            return guardar_operacion("suma", a, b, resultado)
 
-    return guardar_operacion("suma", a, b, resultado)
+    except HTTPException as e:
+        OPERACIONES_ERROR.labels("suma").inc()
+        logger.error(f"[ERROR SUMA] {e.detail}")
+        raise e
+
+    except Exception as e:
+        OPERACIONES_ERROR.labels("suma").inc()
+        logger.error(f"[ERROR SUMA] inesperado: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error interno en SUMA")
 
 # RESTA
 @app.get("/calculadora/resta")
 def restar(a: float = None, b: float = None):
-    validar_operadores(a, b)
+    try:
+        validar_operadores(a, b)
 
-    resultado = a - b
-    logger.info("Operación resta ejecutada")
-    logger.debug(f"a={a}, b={b}, resultado={resultado}")
+        OPERACIONES_TOTAL.labels("resta").inc()
+        with OPERACIONES_DURACION.labels("resta").time():
+            resultado = a - b
+            logger.info(f"[SUCCESS] Resta correcta: a={a}, b={b}, res={resultado}")
+            return guardar_operacion("resta", a, b, resultado)
 
-    return guardar_operacion("resta", a, b, resultado)
+    except HTTPException as e:
+        OPERACIONES_ERROR.labels("resta").inc()
+        logger.error(f"[ERROR RESTA] {e.detail}")
+        raise e
+
+    except Exception as e:
+        OPERACIONES_ERROR.labels("resta").inc()
+        logger.error(f"[ERROR RESTA] inesperado: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error interno en RESTA")
 
 # MULTIPLICACIÓN
 @app.get("/calculadora/multiplicacion")
 def multiplicar(a: float = None, b: float = None):
-    validar_operadores(a, b)
+    try:
+        validar_operadores(a, b)
 
-    resultado = a * b
-    logger.info("Operación multiplicación ejecutada")
-    logger.debug(f"a={a}, b={b}, resultado={resultado}")
+        OPERACIONES_TOTAL.labels("multiplicacion").inc()
+        with OPERACIONES_DURACION.labels("multiplicacion").time():
+            resultado = a * b
+            logger.info(f"[SUCCESS] Multiplicación: a={a}, b={b}, res={resultado}")
+            return guardar_operacion("multiplicacion", a, b, resultado)
 
-    return guardar_operacion("multiplicacion", a, b, resultado)
+    except HTTPException as e:
+        OPERACIONES_ERROR.labels("multiplicacion").inc()
+        logger.error(f"[ERROR MULTIPLICACION] {e.detail}")
+        raise e
+
+    except Exception as e:
+        OPERACIONES_ERROR.labels("multiplicacion").inc()
+        logger.error(f"[ERROR MULTIPLICACION] inesperado: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error interno en MULTIPLICACION")
 
 # DIVISIÓN
 @app.get("/calculadora/division")
 def division(a: float = None, b: float = None):
-    validar_operadores(a, b)
+    try:
+        validar_operadores(a, b)
 
-    if b == 0:
-        raise HTTPException(
-            status_code=400,
-            detail="No se puede dividir entre cero."
-        )
+        if b == 0:
+            raise HTTPException(status_code=400, detail="No se puede dividir entre cero")
 
-    resultado = a / b
-    logger.info("Operación división ejecutada")
-    logger.debug(f"a={a}, b={b}, resultado={resultado}")
+        OPERACIONES_TOTAL.labels("division").inc()
+        with OPERACIONES_DURACION.labels("division").time():
+            resultado = a / b
+            logger.info(f"[SUCCESS] División: a={a}, b={b}, res={resultado}")
+            return guardar_operacion("division", a, b, resultado)
 
-    return guardar_operacion("division", a, b, resultado)
+    except HTTPException as e:
+        OPERACIONES_ERROR.labels("division").inc()
+        logger.error(f"[ERROR DIVISION] {e.detail}")
+        raise e
+
+    except Exception as e:
+        OPERACIONES_ERROR.labels("division").inc()
+        logger.error(f"[ERROR DIVISION] inesperado: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error interno en DIVISION")
 
 # HISTORIAL
 @app.get("/calculadora/historial")
 def obtener_historial():
-    docs = list(collection_historial.find({}, {"_id": 0}).sort("date", ASCENDING))
+    try:
+        docs = list(collection_historial.find({}, {"_id": 0}).sort("date", ASCENDING))
+        logger.info("[SUCCESS] HISTORIAL recuperado")
+        return {"historial": docs}
 
-    historial = []
-    for d in docs:
-        dt = d.get("date")
-        historial.append(
-            {
-                "operacion": d.get("operacion", "-"),
-                "a": float(d.get("a", 0)),
-                "b": float(d.get("b", 0)),
-                "resultado": float(d.get("resultado", 0)),
-                "date": dt.isoformat() if hasattr(dt, "isoformat") else str(dt),
-            }
-        )
+    except Exception as e:
+        logger.error(f"[ERROR HISTORIAL] {str(e)}")
+        raise HTTPException(status_code=500, detail="Error obteniendo historial")
 
-    logger.info("Historial obtenido exitosamente")
-    logger.debug(f"Historial: {historial}")
-
-    return {"historial": historial}
-
+# PROMETHEUS
 instrumentator = Instrumentator().instrument(app).expose(app)
