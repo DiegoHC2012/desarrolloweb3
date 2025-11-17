@@ -15,5 +15,5 @@ scrape_configs:
           - localhost
         labels:
           job: docker
-          host: ${HOSTNAME}
+          container: "{{ .ContainerName }}"
           __path__: /var/lib/docker/containers/*/*.log

@@ -7,4 +7,5 @@ httpx
 mongomock
 prometheus-fastapi-instrumentator
 loki-logger-handler
+python-dotenv
 requests
