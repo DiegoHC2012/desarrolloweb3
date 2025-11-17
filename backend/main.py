@@ -177,5 +177,4 @@ def obtener_historial():
 
     return {"historial": historial}
 
-# PROMETHEUS
 instrumentator = Instrumentator().instrument(app).expose(app)
