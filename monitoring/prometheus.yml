@@ -1,8 +1,14 @@
 global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
+  scrape_interval: 10s
+  evaluation_interval: 10s
 
 scrape_configs:
   - job_name: "fastapi"
+    metrics_path: /metrics
     static_configs:
-      - targets: ["desarrolloweb3-calculadora-1:8000"]
+      - targets: ["calculadora:8000"]
+
+  - job_name: "node"
+    static_configs:
+      - targets: ["node_exporter:9100"]
+
