@@ -39,7 +39,7 @@ services:
         condition: service_healthy
 
   frontend:
-    image: ghcr.io/${GITHUB_USER}/${GITHUB_REPO}/frontend:${IMAGE_TAG}
+    image: ghcr.io/${GITHUB_USER}/${GITHUB_REPO}/frontend:v0.1.4
     restart: always
     ports:
       - "3000:80"

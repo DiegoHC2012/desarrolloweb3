@@ -79,7 +79,6 @@ def validar_operadores(a, b):
         )
 
 def guardar_operacion(nombre, a, b, resultado):
-    """Guarda la operación en Mongo si está disponible."""
     doc = {
         "operacion": nombre,
         "a": a,
@@ -93,6 +92,14 @@ def guardar_operacion(nombre, a, b, resultado):
             collection_historial.insert_one(doc)
         except Exception as e:
             logger.error(f"⚠️ No se pudo guardar en Mongo: {e}")
+
+    # Asegurar que no regrese ObjectId
+    if "_id" in doc:
+        del doc["_id"]
+
+    # Convertimos fecha a ISO 8601 para evitar errores en FastAPI
+    if isinstance(doc.get("date"), (datetime.datetime, datetime.date)):
+        doc["date"] = doc["date"].isoformat()
 
     return doc
 
